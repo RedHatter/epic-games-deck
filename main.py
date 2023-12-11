@@ -21,6 +21,15 @@ sys.path.append(PLUGIN_DIR+"/py_modules")
 
 from legendary.core import LegendaryCore
 
+from settings import SettingsManager
+
+log = logging.getLogger('Epic')
+
+log.info(os.environ["DECKY_PLUGIN_SETTINGS_DIR"])
+
+settings = SettingsManager(name="settings", settings_directory=os.environ["DECKY_PLUGIN_SETTINGS_DIR"])
+settings.read()
+
 class Plugin:
     async def login(self):
         core = LegendaryCore()
@@ -32,13 +41,13 @@ class Plugin:
 
     async def auth_code(self, code):
         core = LegendaryCore()
-        decky_plugin.logger.info('Setting auth code: ' + code)
+        log.info('Setting auth code: ' + code)
         return core.auth_code(code)
 
-    async def get_game_list(self):
+    async def sync_library(self, appidList):
         core = LegendaryCore()
         if not core.login():
-            decky_plugin.logger.error('Login failed, cannot continue!')
+            log.error('Login failed, cannot continue!')
             
         games = core.get_game_and_dlc_list(update_assets=True, platform='Windows', force_refresh=True, skip_ue=True)[0]
 
@@ -47,8 +56,14 @@ class Plugin:
             _j = vars(game)
             data.append(_j)
 
-        return data
-        # return json.dumps(data)
+        map = settings.getSetting('appid_map', {})
+        return [g for g in data if g['app_name'] not in map or map[g['app_name']] not in appidList]
+
+    async def update_appid_map(self, value):
+        log.info(json.dumps(value))
+        map = settings.getSetting('appid_map', {})
+        map.update(value)
+        settings.setSetting('appid_map', map)
 
     async def _unload(self):
         pass

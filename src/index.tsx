@@ -15,6 +15,8 @@ import { FaShip } from 'react-icons/fa'
 import Backend from './Backend'
 import { addShortcut } from './helpers'
 
+import * as R from 'remeda'
+
 const Content: VFC<{ backend: Backend }> = ({ backend }) => {
   const [isAuthenticated, setAuthenticated] = useState<boolean | null>(null)
 
@@ -53,12 +55,20 @@ const Content: VFC<{ backend: Backend }> = ({ backend }) => {
           layout="below"
           disabled={!isAuthenticated}
           onClick={async () => {
-            const gameList = await backend.getGameList()
-            console.log('GAME LIST', gameList)
+            const gameList = await backend.syncLibrary()
 
-            for (const game of gameList) {
-              addShortcut({ name: game.app_title, target: 'legendary', cwd: '/usr/bin', launchOptions: '' })
-            }
+            const appidMap = R.zipObj(
+              R.map(gameList, R.prop('app_name')),
+              await Promise.all(
+                R.map(gameList, (game) =>
+                  addShortcut({ name: game.app_title, target: 'legendary', cwd: '/usr/bin', launchOptions: '' }),
+                ),
+              ),
+            )
+
+            console.debug('GAME LIST', gameList, appidMap)
+
+            backend.updateAppidMap(appidMap)
           }}
         >
           Sync library

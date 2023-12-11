@@ -11,6 +11,9 @@ dependencies:
   react-icons:
     specifier: ^4.4.0
     version: 4.9.0
+  remeda:
+    specifier: ^1.29.0
+    version: 1.29.0
 
 devDependencies:
   '@rollup/plugin-commonjs':
@@ -721,6 +724,10 @@ packages:
     dependencies:
       resolve: 1.22.2
     dev: true
+
+  /remeda@1.29.0:
+    resolution: {integrity: sha512-M3LQ14KtMdQ1879lj/kKji3zBk158s7Rwg963mEkTfQFMxnKrIEAMxJfo/+0sp/+uGgN/KMVU2MBA4LNjqf8YQ==}
+    dev: false
 
   /resolve@1.22.2:
     resolution: {integrity: sha512-Sb+mjNHOULsBv818T40qSPeRiuWLyaGMa5ewydRLFimneixmVy2zdivRl+AF6jaYPC8ERxGDmFSiqui6SfPd+g==}

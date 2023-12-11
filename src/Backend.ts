@@ -31,7 +31,13 @@ export default class Backend {
     return this.#callPluginMethod<boolean | 'No saved credentials'>('login', {})
   }
 
-  getGameList() {
-    return this.#callPluginMethod<Array<Game>>('get_game_list', {})
+  syncLibrary() {
+    return this.#callPluginMethod<Array<Game>>('sync_library', {
+      appidList: Array.from((window as any).collectionStore.deckDesktopApps.apps.keys()),
+    })
+  }
+
+  updateAppidMap(value: { [index: string]: string }) {
+    return this.#callPluginMethod<null, { value: { [index: string]: string } }>('update_appid_map', { value })
   }
 }

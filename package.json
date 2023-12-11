@@ -42,7 +42,8 @@
   },
   "dependencies": {
     "decky-frontend-lib": "^3.24.0",
-    "react-icons": "^4.4.0"
+    "react-icons": "^4.4.0",
+    "remeda": "^1.29.0"
   },
   "pnpm": {
     "peerDependencyRules": {
