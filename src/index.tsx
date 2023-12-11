@@ -21,7 +21,7 @@ import logo from "../assets/logo.png";
 //   right: number;
 // }
 
-const Content: VFC<{ serverAPI: ServerAPI }> = ({serverAPI}) => {
+const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
   // const [result, setResult] = useState<number | undefined>();
 
   // const onClick = async () => {
@@ -95,7 +95,7 @@ export default definePlugin((serverApi: ServerAPI) => {
   });
 
   return {
-    title: <div className={staticClasses.Title}>Example Plugin</div>,
+    title: <div className={staticClasses.Title}>epic-games-deck</div>,
     content: <Content serverAPI={serverApi} />,
     icon: <FaShip />,
     onDismount() {
