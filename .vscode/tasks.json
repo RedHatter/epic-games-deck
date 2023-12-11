@@ -58,8 +58,9 @@
             "label": "cli-build",
             "group": "build",
             "detail": "Build plugin with CLI",
+            "type": "shell",
             "linux": {
-                "command": "${workspaceFolder}/.vscode/build.sh",
+                "command": "echo ${config:userpass} | sudo -S $(pwd)/cli/decky plugin build $(pwd)",
             },
             // // placeholder for windows logic, not currently planned
             // "windows": {
