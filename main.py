@@ -1,41 +1,54 @@
 import os
+import sys
+import logging
+import json
 
 # The decky plugin module is located at decky-loader/plugin
 # For easy intellisense checkout the decky-loader code one directory up
 # or add the `decky-loader/plugin` path to `python.analysis.extraPaths` in `.vscode/settings.json`
 import decky_plugin
 
+root = logging.getLogger()
+root.setLevel(logging.DEBUG)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('[%(name)s][%(levelname)s]: %(message)s')
+handler.setFormatter(formatter)
+root.addHandler(handler)
+
+PLUGIN_DIR = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(PLUGIN_DIR+"/py_modules")
+
+from legendary.core import LegendaryCore
 
 class Plugin:
-    # A normal method. It can be called from JavaScript using call_plugin_function("method_1", argument1, argument2)
-    async def add(self, left, right):
-        return left + right
+    async def login(self):
+        core = LegendaryCore()
+        return core.login()
 
-    # Asyncio-compatible long-running code, executed in a task when the plugin is loaded
-    async def _main(self):
-        decky_plugin.logger.info("Hello World!")
+    async def invalidate_userdata(self):
+        core = LegendaryCore()
+        core.lgd.invalidate_userdata()
 
-    # Function called first during the unload process, utilize this to handle your plugin being removed
+    async def auth_code(self, code):
+        core = LegendaryCore()
+        decky_plugin.logger.info('Setting auth code: ' + code)
+        return core.auth_code(code)
+
+    async def get_game_list(self):
+        core = LegendaryCore()
+        if not core.login():
+            decky_plugin.logger.error('Login failed, cannot continue!')
+            
+        games = core.get_game_and_dlc_list(update_assets=True, platform='Windows', force_refresh=True, skip_ue=True)[0]
+
+        data = []
+        for game in games:
+            _j = vars(game)
+            data.append(_j)
+
+        return data
+        # return json.dumps(data)
+
     async def _unload(self):
-        decky_plugin.logger.info("Goodbye World!")
         pass
-
-    # Migrations that should be performed before entering `_main()`.
-    async def _migration(self):
-        decky_plugin.logger.info("Migrating")
-        # Here's a migration example for logs:
-        # - `~/.config/decky-template/template.log` will be migrated to `decky_plugin.DECKY_PLUGIN_LOG_DIR/template.log`
-        decky_plugin.migrate_logs(os.path.join(decky_plugin.DECKY_USER_HOME,
-                                               ".config", "decky-template", "template.log"))
-        # Here's a migration example for settings:
-        # - `~/homebrew/settings/template.json` is migrated to `decky_plugin.DECKY_PLUGIN_SETTINGS_DIR/template.json`
-        # - `~/.config/decky-template/` all files and directories under this root are migrated to `decky_plugin.DECKY_PLUGIN_SETTINGS_DIR/`
-        decky_plugin.migrate_settings(
-            os.path.join(decky_plugin.DECKY_HOME, "settings", "template.json"),
-            os.path.join(decky_plugin.DECKY_USER_HOME, ".config", "decky-template"))
-        # Here's a migration example for runtime data:
-        # - `~/homebrew/template/` all files and directories under this root are migrated to `decky_plugin.DECKY_PLUGIN_RUNTIME_DIR/`
-        # - `~/.local/share/decky-template/` all files and directories under this root are migrated to `decky_plugin.DECKY_PLUGIN_RUNTIME_DIR/`
-        decky_plugin.migrate_runtime(
-            os.path.join(decky_plugin.DECKY_HOME, "template"),
-            os.path.join(decky_plugin.DECKY_USER_HOME, ".local", "share", "decky-template"))

@@ -2,104 +2,131 @@ import {
   ButtonItem,
   definePlugin,
   DialogButton,
-  Menu,
-  MenuItem,
   PanelSection,
   PanelSectionRow,
   Router,
   ServerAPI,
-  showContextMenu,
   staticClasses,
-} from "decky-frontend-lib";
-import { VFC } from "react";
-import { FaShip } from "react-icons/fa";
+  TextField,
+} from 'decky-frontend-lib'
+import { useEffect, useState, VFC } from 'react'
+import { FaShip } from 'react-icons/fa'
 
-import logo from "../assets/logo.png";
+import Backend from './Backend'
+import { addShortcut } from './helpers'
 
-// interface AddMethodArgs {
-//   left: number;
-//   right: number;
-// }
+const Content: VFC<{ backend: Backend }> = ({ backend }) => {
+  const [isAuthenticated, setAuthenticated] = useState<boolean | null>(null)
 
-const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
-  // const [result, setResult] = useState<number | undefined>();
+  const tryLogin = () =>
+    backend.login().then(
+      (result) => setAuthenticated(result === true),
+      () => setAuthenticated(false),
+    )
 
-  // const onClick = async () => {
-  //   const result = await serverAPI.callPluginMethod<AddMethodArgs, number>(
-  //     "add",
-  //     {
-  //       left: 2,
-  //       right: 2,
-  //     }
-  //   );
-  //   if (result.success) {
-  //     setResult(result.result);
-  //   }
-  // };
+  useEffect(() => {
+    tryLogin()
+  }, [])
 
   return (
-    <PanelSection title="Panel Section">
+    <PanelSection title="Epic Games">
       <PanelSectionRow>
+        {isAuthenticated === null ?
+          <ButtonItem layout="below" disabled>
+            Loading...
+          </ButtonItem>
+        : isAuthenticated ?
+          <ButtonItem layout="below" onClick={() => backend.invalidateUserdata().then(tryLogin)}>
+            Sign out
+          </ButtonItem>
+        : <ButtonItem
+            layout="below"
+            onClick={() => {
+              Router.CloseSideMenus()
+              Router.Navigate('/legendary-epic-login')
+            }}
+          >
+            Sign in
+          </ButtonItem>
+        }
         <ButtonItem
           layout="below"
-          onClick={(e) =>
-            showContextMenu(
-              <Menu label="Menu" cancelText="CAAAANCEL" onCancel={() => {}}>
-                <MenuItem onSelected={() => {}}>Item #1</MenuItem>
-                <MenuItem onSelected={() => {}}>Item #2</MenuItem>
-                <MenuItem onSelected={() => {}}>Item #3</MenuItem>
-              </Menu>,
-              e.currentTarget ?? window
-            )
-          }
-        >
-          Server says yolo
-        </ButtonItem>
-      </PanelSectionRow>
+          disabled={!isAuthenticated}
+          onClick={async () => {
+            const gameList = await backend.getGameList()
+            console.log('GAME LIST', gameList)
 
-      <PanelSectionRow>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <img src={logo} />
-        </div>
-      </PanelSectionRow>
-
-      <PanelSectionRow>
-        <ButtonItem
-          layout="below"
-          onClick={() => {
-            Router.CloseSideMenus();
-            Router.Navigate("/decky-plugin-test");
+            for (const game of gameList) {
+              addShortcut({ name: game.app_title, target: 'legendary', cwd: '/usr/bin', launchOptions: '' })
+            }
           }}
         >
-          Router
+          Sync library
         </ButtonItem>
       </PanelSectionRow>
     </PanelSection>
-  );
-};
+  )
+}
 
-const DeckyPluginRouterTest: VFC = () => {
+const EpicLogin: VFC<{ backend: Backend }> = ({ backend }) => {
+  // const browser = useMemo(() => {
+  //   const b = (Router.WindowStore?.GamepadUIMainWindowInstance as any)?.CreateBrowserView('legendary.gl')
+  //   b.LoadURL('https://legendary.gl/epiclogin')
+  //   // b.LoadURL('https://www.whatismybrowser.com/detect/are-cookies-enabled')
+  //   return b
+  // }, [])
+
+  // console.log(browser)
+
+  // return (
+  //   <BrowserContainer
+  //     browser={browser}
+  //     className="mainbrowser_ExternalBrowserContainer_3FyI1 activeBrowserTab_BrowserContainer"
+  //     visible
+  //     hideForModals
+  //     external
+  //     autoFocus
+  //   />
+  // )
+  const [code, setCode] = useState('')
+
+  console.log(backend)
+
   return (
-    <div style={{ marginTop: "50px", color: "white" }}>
-      Hello World!
-      <DialogButton onClick={() => Router.NavigateToLibraryTab()}>
-        Go to Library
+    <div
+      style={{
+        height: '100%',
+        display: 'grid',
+        gap: '16px',
+        gridTemplateColumns: '1fr max-content',
+        alignItems: 'center',
+        margin: '40px',
+      }}
+    >
+      <TextField label="Authorization code" focusOnMount value={code} onChange={(e) => setCode(e.target.value)} />
+      <DialogButton
+        onClick={() => {
+          console.log(code)
+          backend.authCode(code)
+        }}
+      >
+        Done
       </DialogButton>
     </div>
-  );
-};
+  )
+}
 
 export default definePlugin((serverApi: ServerAPI) => {
-  serverApi.routerHook.addRoute("/decky-plugin-test", DeckyPluginRouterTest, {
-    exact: true,
-  });
+  const backend = new Backend(serverApi)
+
+  serverApi.routerHook.addRoute('/legendary-epic-login', () => <EpicLogin backend={backend} />, { exact: true })
 
   return {
     title: <div className={staticClasses.Title}>epic-games-deck</div>,
-    content: <Content serverAPI={serverApi} />,
+    content: <Content backend={backend} />,
     icon: <FaShip />,
     onDismount() {
-      serverApi.routerHook.removeRoute("/decky-plugin-test");
+      serverApi.routerHook.removeRoute('/legendary-epic-login')
     },
-  };
-});
+  }
+})
