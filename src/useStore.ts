@@ -1,25 +1,29 @@
 import { ServerAPI } from 'decky-frontend-lib'
 import { create } from 'zustand'
 import * as R from 'remeda'
+import { diff } from 'deep-object-diff'
 
 import { GameInfo } from './GameInfo'
 
 export enum GameStatus {
+  downloading = 7,
   uninstalled = 9,
   ready = 11,
-  downloading = 23,
+  queued = 23,
+}
+
+type GameState = {
+  epicName: string
+  display_status: GameStatus
+  bytes_downloaded: number
+  bytes_total: number
 }
 
 type State = {
   serverAPI: ServerAPI | undefined
   isAuthenticated: boolean
   games: {
-    [appid: number]: {
-      epicName: string
-      display_status: GameStatus
-      bytes_downloaded: number
-      bytes_total: number
-    }
+    [appid: number]: GameState
   }
 }
 
@@ -28,6 +32,8 @@ export const useStore = create<State>()(() => ({
   isAuthenticated: false,
   games: {},
 }))
+
+useStore.subscribe((state, prevState) => console.debug('STORE UPDATE', diff(prevState, state)))
 
 const callPluginMethod = async <TRes = null, TArgs = {}>(method: string, args: TArgs) => {
   const { serverAPI } = useStore.getState()
@@ -78,22 +84,7 @@ SteamClient.Installs.OpenInstallWizard = function (appidList: Array<number>) {
     return SteamClient.Installs.OpenInstallWizard.__original.call(this, ...arguments)
   }
 
-  useStore.setState((s) => ({
-    games: {
-      ...s.games,
-      ...R.mapToObj(filteredList, (appid) => [
-        appid,
-        {
-          ...s.games[appid],
-          display_status: GameStatus.downloading,
-          bytes_downloaded: 80000000000,
-          bytes_total: 100000000000,
-        },
-      ]),
-    },
-  }))
-
-  console.log('install', useStore.getState().games, filteredList)
+  R.forEach(filteredList, installGame)
 }
 
 export const setServerAPI = (serverAPI: ServerAPI) => useStore.setState(() => ({ serverAPI }))
@@ -220,4 +211,55 @@ export const clearLibrary = async () => {
 
   await internal.updateAppidMap({})
   useStore.setState(() => ({ games: {} }))
+}
+
+export const updateGameOverview = (appid: number, game: Partial<GameState>) => {
+  useStore.setState((s) =>
+    R.mergeDeep(s, {
+      games: { [appid]: game as GameState },
+    }),
+  )
+
+  patchGameOverview(appid)
+}
+
+export const patchGameOverview = (appid: number) => {
+  const game = useStore.getState().games[appid]
+
+  Object.assign((window as any).collectionStore.allAppsCollection.apps.get(appid).local_per_client_data, {
+    installed: game.display_status !== GameStatus.ready,
+    display_status: game.display_status,
+    bytes_downloaded: game.bytes_downloaded.toString(),
+    bytes_total: game.bytes_total.toString(),
+    status_percentage: (game.bytes_downloaded / game.bytes_total) * 100,
+  })
+}
+
+export const installGame = (appid: number) => {
+  updateGameOverview(appid, {
+    display_status: GameStatus.downloading,
+    bytes_downloaded: 0,
+    bytes_total: 10000000000,
+  })
+
+  const tick = () => {
+    const game = useStore.getState().games[appid]
+
+    if (game.bytes_downloaded >= game.bytes_total) {
+      updateGameOverview(appid, {
+        display_status: GameStatus.ready,
+      })
+    } else {
+      updateGameOverview(appid, {
+        display_status: GameStatus.queued,
+        bytes_downloaded: game.bytes_downloaded + game.bytes_total / 100,
+      })
+
+      setTimeout(tick, 1000)
+    }
+  }
+
+  setTimeout(tick, 1000)
+
+  console.debug('DOWNLOAD', appid)
 }

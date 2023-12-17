@@ -42,8 +42,9 @@
   },
   "dependencies": {
     "decky-frontend-lib": "^3.24.1",
+    "deep-object-diff": "^1.1.9",
     "react-icons": "^4.4.0",
-    "remeda": "^1.29.0",
+    "remeda": "^1.31.0",
     "zustand": "^4.4.7"
   },
   "pnpm": {
