@@ -9,28 +9,28 @@ import {
   staticClasses,
   TextField,
 } from 'decky-frontend-lib'
-import { ReactElement, useEffect, useState, VFC } from 'react'
+import { FC, useEffect, useState } from 'react'
 import { FaShip } from 'react-icons/fa'
 
-import useAPI from './useAPI'
 import patchLibraryApp from './patchLibraryApp'
+import { clearLibrary, initGames, setServerAPI, signIn, signOut, syncLibrary, useStore } from './useStore'
 
-const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
-  const api = useAPI(serverAPI)
+const Content: FC = () => {
+  const isAuthenticated = useStore((s) => s.isAuthenticated)
 
   useEffect(() => {
-    api.login()
+    signIn()
   }, [])
 
   return (
     <PanelSection title="Epic Games">
       <PanelSectionRow>
-        {api.isAuthenticated === null ?
+        {isAuthenticated === null ?
           <ButtonItem layout="below" disabled>
             Loading...
           </ButtonItem>
-        : api.isAuthenticated ?
-          <ButtonItem layout="below" onClick={api.logout}>
+        : isAuthenticated ?
+          <ButtonItem layout="below" onClick={signOut}>
             Sign out
           </ButtonItem>
         : <ButtonItem
@@ -43,10 +43,10 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
             Sign in
           </ButtonItem>
         }
-        <ButtonItem layout="below" disabled={!api.isAuthenticated} onClick={api.syncLibrary}>
+        <ButtonItem layout="below" disabled={!isAuthenticated} onClick={syncLibrary}>
           Sync library
         </ButtonItem>
-        <ButtonItem layout="below" onClick={api.clearLibrary}>
+        <ButtonItem layout="below" onClick={clearLibrary}>
           Clear library
         </ButtonItem>
       </PanelSectionRow>
@@ -54,9 +54,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
   )
 }
 
-const EpicLogin: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
-  const api = useAPI(serverAPI)
-
+const EpicLogin: FC = () => {
   const [code, setCode] = useState('')
 
   return (
@@ -71,19 +69,22 @@ const EpicLogin: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
       }}
     >
       <TextField label="Authorization code" focusOnMount value={code} onChange={(e) => setCode(e.target.value)} />
-      <DialogButton onClick={() => api.login(code)}>Done</DialogButton>
+      <DialogButton onClick={() => signIn(code)}>Done</DialogButton>
     </div>
   )
 }
 
 export default definePlugin((serverAPI: ServerAPI) => {
-  serverAPI.routerHook.addRoute('/legendary-epic-login', () => <EpicLogin serverAPI={serverAPI} />, { exact: true })
+  setServerAPI(serverAPI)
+  initGames()
+
+  serverAPI.routerHook.addRoute('/legendary-epic-login', () => <EpicLogin />, { exact: true })
 
   const libraryPatch = patchLibraryApp(serverAPI)
 
   return {
     title: <div className={staticClasses.Title}>epic-games-deck</div>,
-    content: <Content serverAPI={serverAPI} />,
+    content: <Content />,
     icon: <FaShip />,
     onDismount() {
       serverAPI.routerHook.removeRoute('/legendary-epic-login')
