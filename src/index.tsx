@@ -9,10 +9,11 @@ import {
   staticClasses,
   TextField,
 } from 'decky-frontend-lib'
-import { useEffect, useState, VFC } from 'react'
+import { ReactElement, useEffect, useState, VFC } from 'react'
 import { FaShip } from 'react-icons/fa'
 
 import useAPI from './useAPI'
+import patchLibraryApp from './patchLibraryApp'
 
 const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
   const api = useAPI(serverAPI)
@@ -54,25 +55,6 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
 }
 
 const EpicLogin: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
-  // const browser = useMemo(() => {
-  //   const b = (Router.WindowStore?.GamepadUIMainWindowInstance as any)?.CreateBrowserView('legendary.gl')
-  //   b.LoadURL('https://legendary.gl/epiclogin')
-  //   // b.LoadURL('https://www.whatismybrowser.com/detect/are-cookies-enabled')
-  //   return b
-  // }, [])
-
-  // console.log(browser)
-
-  // return (
-  //   <BrowserContainer
-  //     browser={browser}
-  //     className="mainbrowser_ExternalBrowserContainer_3FyI1 activeBrowserTab_BrowserContainer"
-  //     visible
-  //     hideForModals
-  //     external
-  //     autoFocus
-  //   />
-  // )
   const api = useAPI(serverAPI)
 
   const [code, setCode] = useState('')
@@ -95,8 +77,9 @@ const EpicLogin: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
 }
 
 export default definePlugin((serverAPI: ServerAPI) => {
-
   serverAPI.routerHook.addRoute('/legendary-epic-login', () => <EpicLogin serverAPI={serverAPI} />, { exact: true })
+
+  const libraryPatch = patchLibraryApp(serverAPI)
 
   return {
     title: <div className={staticClasses.Title}>epic-games-deck</div>,
@@ -104,6 +87,7 @@ export default definePlugin((serverAPI: ServerAPI) => {
     icon: <FaShip />,
     onDismount() {
       serverAPI.routerHook.removeRoute('/legendary-epic-login')
+      serverAPI.routerHook.removePatch('/library/app/:appid', libraryPatch)
     },
   }
 })

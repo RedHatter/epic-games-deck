@@ -4,7 +4,7 @@ import { ServerAPI } from 'decky-frontend-lib'
 import { GameInfo } from './GameInfo'
 import { useState } from 'react'
 
-export const addShortcut = async ({
+const addShortcut = async ({
   name,
   target,
   cwd,
@@ -19,7 +19,7 @@ export const addShortcut = async ({
   cover: string | undefined
   wideCover: string | undefined
 }) => {
-  const appid = await SteamClient.Apps.AddShortcut(name, target, cwd, launchOptions)
+  const appid: number = await SteamClient.Apps.AddShortcut(name, target, cwd, launchOptions)
 
   // The above is broken we need to set launch options and name manually
   await SteamClient.Apps.SetShortcutLaunchOptions(appid, launchOptions)
@@ -59,10 +59,10 @@ const useAPI = (serverAPI: ServerAPI) => {
         appidList: Array.from((window as any).collectionStore.deckDesktopApps.apps.keys()),
       }),
 
-    updateAppidMap: (value: { [index: string]: string }) =>
-      callPluginMethod<null, { value: { [index: string]: string } }>('update_appid_map', { value }),
+    updateAppidMap: (value: { [index: string]: number }) =>
+      callPluginMethod<null, { value: { [index: string]: number } }>('update_appid_map', { value }),
 
-    getAppidMap: () => callPluginMethod<{ [index: string]: string }>('get_appid_map', {}),
+    getAppidMap: () => callPluginMethod<{ [index: string]: number }>('get_appid_map', {}),
 
     getExec: () => callPluginMethod<string>('get_exec', {}),
 
@@ -94,36 +94,43 @@ const useAPI = (serverAPI: ServerAPI) => {
     isAuthenticated,
 
     addGame: async (game: GameInfo) => {
-      const exec = await internal.getExec()
-      const coverUrl = R.find(game.metadata.keyImages, (i) => i.type === 'DieselGameBoxTall')?.url
-      const wideCoverUrl = R.find(game.metadata.keyImages, (i) => i.type === 'DieselGameBox')?.url
+      try {
+        const exec = await internal.getExec()
+        const coverUrl = R.find(game.metadata.keyImages, (i) => i.type === 'DieselGameBoxTall')?.url
+        const wideCoverUrl = R.find(game.metadata.keyImages, (i) => i.type === 'DieselGameBox')?.url
 
-      const appid = await addShortcut({
-        name: game.app_title,
-        target: `${exec} launch ${game.app_name}`,
-        cwd: '/usr/bin',
-        launchOptions: '',
-        cover: coverUrl ? await internal.download(coverUrl) : undefined,
-        wideCover: wideCoverUrl ? await internal.download(wideCoverUrl) : undefined,
-      })
+        const appid = await addShortcut({
+          name: game.app_title,
+          target: `${exec} launch ${game.app_name}`,
+          cwd: '/usr/bin',
+          launchOptions: '',
+          cover: coverUrl ? await internal.download(coverUrl) : undefined,
+          wideCover: wideCoverUrl ? await internal.download(wideCoverUrl) : undefined,
+        })
 
-      return appid
+        return appid
+      } catch (e) {
+        console.error('Error adding game', game.app_title, game.app_name, e)
+
+        return null
+      }
     },
 
     syncLibrary: async () => {
       const gameList = await internal.syncLibrary()
 
-      const appidMap = R.zipObj(R.map(gameList, R.prop('app_name')), await Promise.all(R.map(gameList, api.addGame)))
-
-      console.debug('GAME LIST', gameList, appidMap)
+      const appidMap = R.zipObj(
+        R.map(gameList, R.prop('app_name')),
+        R.compact(await Promise.all(R.map(gameList, api.addGame))),
+      )
 
       internal.updateAppidMap(appidMap)
+
+      console.debug('GAME LIST', gameList, appidMap)
     },
 
     clearLibrary: async () => {
       const appidMap = await internal.getAppidMap()
-
-      console.debug('REMOVE', appidMap)
 
       await Promise.all(
         R.pipe(
@@ -131,6 +138,26 @@ const useAPI = (serverAPI: ServerAPI) => {
           R.map((appid) => SteamClient.Apps.RemoveShortcut(appid)),
         ),
       )
+      console.debug('REMOVE', appidMap)
+    },
+
+    patchGame: async (appid: number) => {
+      const appidMap = await internal.getAppidMap()
+
+      console.log(R.values(appidMap), appid)
+
+      if (!R.values(appidMap).includes(appid)) {
+        console.log('dont patch', appid)
+        return false
+      }
+
+      const overview = (window as any).collectionStore.allAppsCollection.apps.get(appid)
+      overview.local_per_client_data.display_status = 9
+      overview.local_per_client_data.installed = false
+
+      console.debug('PATCH INFO', appid, overview)
+
+      return true
     },
   }
 
