@@ -1,9 +1,5 @@
 import { ServerAPI } from 'decky-frontend-lib'
-
-type Game = {
-  app_name: string
-  app_title: string
-}
+import { GameInfo } from './GameInfo'
 
 export default class Backend {
   #serverAPI: ServerAPI
@@ -32,12 +28,24 @@ export default class Backend {
   }
 
   syncLibrary() {
-    return this.#callPluginMethod<Array<Game>>('sync_library', {
+    return this.#callPluginMethod<Array<GameInfo>>('sync_library', {
       appidList: Array.from((window as any).collectionStore.deckDesktopApps.apps.keys()),
     })
   }
 
   updateAppidMap(value: { [index: string]: string }) {
     return this.#callPluginMethod<null, { value: { [index: string]: string } }>('update_appid_map', { value })
+  }
+
+  getAppidMap() {
+    return this.#callPluginMethod<{ [index: string]: string }>('get_appid_map', {})
+  }
+
+  getExec() {
+    return this.#callPluginMethod<string>('get_exec', {})
+  }
+
+  download(url: string) {
+    return this.#callPluginMethod<string, { url: string }>('download_as_base64', { url })
   }
 }

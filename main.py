@@ -2,6 +2,8 @@ import os
 import sys
 import logging
 import json
+from urllib.request import Request, urlopen
+from base64 import b64encode
 
 # The decky plugin module is located at decky-loader/plugin
 # For easy intellisense checkout the decky-loader code one directory up
@@ -16,12 +18,13 @@ formatter = logging.Formatter('[%(name)s][%(levelname)s]: %(message)s')
 handler.setFormatter(formatter)
 root.addHandler(handler)
 
-PLUGIN_DIR = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(PLUGIN_DIR+"/py_modules")
+PY_MODULES = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(PY_MODULES)
 
 from legendary.core import LegendaryCore
 
-from settings import SettingsManager
+from settings import SettingsManager # type: ignore
+from helpers import get_ssl_context # type: ignore
 
 log = logging.getLogger('Epic')
 
@@ -64,6 +67,17 @@ class Plugin:
         map = settings.getSetting('appid_map', {})
         map.update(value)
         settings.setSetting('appid_map', map)
+
+    async def get_appid_map(self):
+        return settings.getSetting('appid_map', {})
+    
+    async def get_exec(self):
+        return f'PYTHONPATH="{PY_MODULES}" "{PY_MODULES}/bin/legendary"'
+
+    async def download_as_base64(self, url):
+        req = Request(url)
+        content = urlopen(req, context=get_ssl_context()).read()
+        return b64encode(content).decode('utf-8')
 
     async def _unload(self):
         pass

@@ -13,7 +13,7 @@ import { useEffect, useState, VFC } from 'react'
 import { FaShip } from 'react-icons/fa'
 
 import Backend from './Backend'
-import { addShortcut } from './helpers'
+import { addGame } from './helpers'
 
 import * as R from 'remeda'
 
@@ -59,11 +59,7 @@ const Content: VFC<{ backend: Backend }> = ({ backend }) => {
 
             const appidMap = R.zipObj(
               R.map(gameList, R.prop('app_name')),
-              await Promise.all(
-                R.map(gameList, (game) =>
-                  addShortcut({ name: game.app_title, target: 'legendary', cwd: '/usr/bin', launchOptions: '' }),
-                ),
-              ),
+              await Promise.all(R.map(gameList, (game) => addGame({ game, backend }))),
             )
 
             console.debug('GAME LIST', gameList, appidMap)
@@ -72,6 +68,23 @@ const Content: VFC<{ backend: Backend }> = ({ backend }) => {
           }}
         >
           Sync library
+        </ButtonItem>
+        <ButtonItem
+          layout="below"
+          onClick={async () => {
+            const appidMap = await backend.getAppidMap()
+
+            console.debug('REMOVE', appidMap)
+
+            await Promise.all(
+              R.pipe(
+                R.values(appidMap),
+                R.map((appid) => SteamClient.Apps.RemoveShortcut(appid)),
+              ),
+            )
+          }}
+        >
+          Clear library
         </ButtonItem>
       </PanelSectionRow>
     </PanelSection>
