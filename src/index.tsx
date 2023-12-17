@@ -12,33 +12,24 @@ import {
 import { useEffect, useState, VFC } from 'react'
 import { FaShip } from 'react-icons/fa'
 
-import Backend from './Backend'
-import { addGame } from './helpers'
+import useAPI from './useAPI'
 
-import * as R from 'remeda'
-
-const Content: VFC<{ backend: Backend }> = ({ backend }) => {
-  const [isAuthenticated, setAuthenticated] = useState<boolean | null>(null)
-
-  const tryLogin = () =>
-    backend.login().then(
-      (result) => setAuthenticated(result === true),
-      () => setAuthenticated(false),
-    )
+const Content: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
+  const api = useAPI(serverAPI)
 
   useEffect(() => {
-    tryLogin()
+    api.login()
   }, [])
 
   return (
     <PanelSection title="Epic Games">
       <PanelSectionRow>
-        {isAuthenticated === null ?
+        {api.isAuthenticated === null ?
           <ButtonItem layout="below" disabled>
             Loading...
           </ButtonItem>
-        : isAuthenticated ?
-          <ButtonItem layout="below" onClick={() => backend.invalidateUserdata().then(tryLogin)}>
+        : api.isAuthenticated ?
+          <ButtonItem layout="below" onClick={api.logout}>
             Sign out
           </ButtonItem>
         : <ButtonItem
@@ -51,39 +42,10 @@ const Content: VFC<{ backend: Backend }> = ({ backend }) => {
             Sign in
           </ButtonItem>
         }
-        <ButtonItem
-          layout="below"
-          disabled={!isAuthenticated}
-          onClick={async () => {
-            const gameList = await backend.syncLibrary()
-
-            const appidMap = R.zipObj(
-              R.map(gameList, R.prop('app_name')),
-              await Promise.all(R.map(gameList, (game) => addGame({ game, backend }))),
-            )
-
-            console.debug('GAME LIST', gameList, appidMap)
-
-            backend.updateAppidMap(appidMap)
-          }}
-        >
+        <ButtonItem layout="below" disabled={!api.isAuthenticated} onClick={api.syncLibrary}>
           Sync library
         </ButtonItem>
-        <ButtonItem
-          layout="below"
-          onClick={async () => {
-            const appidMap = await backend.getAppidMap()
-
-            console.debug('REMOVE', appidMap)
-
-            await Promise.all(
-              R.pipe(
-                R.values(appidMap),
-                R.map((appid) => SteamClient.Apps.RemoveShortcut(appid)),
-              ),
-            )
-          }}
-        >
+        <ButtonItem layout="below" onClick={api.clearLibrary}>
           Clear library
         </ButtonItem>
       </PanelSectionRow>
@@ -91,7 +53,7 @@ const Content: VFC<{ backend: Backend }> = ({ backend }) => {
   )
 }
 
-const EpicLogin: VFC<{ backend: Backend }> = ({ backend }) => {
+const EpicLogin: VFC<{ serverAPI: ServerAPI }> = ({ serverAPI }) => {
   // const browser = useMemo(() => {
   //   const b = (Router.WindowStore?.GamepadUIMainWindowInstance as any)?.CreateBrowserView('legendary.gl')
   //   b.LoadURL('https://legendary.gl/epiclogin')
@@ -111,9 +73,9 @@ const EpicLogin: VFC<{ backend: Backend }> = ({ backend }) => {
   //     autoFocus
   //   />
   // )
-  const [code, setCode] = useState('')
+  const api = useAPI(serverAPI)
 
-  console.log(backend)
+  const [code, setCode] = useState('')
 
   return (
     <div
@@ -127,29 +89,21 @@ const EpicLogin: VFC<{ backend: Backend }> = ({ backend }) => {
       }}
     >
       <TextField label="Authorization code" focusOnMount value={code} onChange={(e) => setCode(e.target.value)} />
-      <DialogButton
-        onClick={() => {
-          console.log(code)
-          backend.authCode(code)
-        }}
-      >
-        Done
-      </DialogButton>
+      <DialogButton onClick={() => api.login(code)}>Done</DialogButton>
     </div>
   )
 }
 
-export default definePlugin((serverApi: ServerAPI) => {
-  const backend = new Backend(serverApi)
+export default definePlugin((serverAPI: ServerAPI) => {
 
-  serverApi.routerHook.addRoute('/legendary-epic-login', () => <EpicLogin backend={backend} />, { exact: true })
+  serverAPI.routerHook.addRoute('/legendary-epic-login', () => <EpicLogin serverAPI={serverAPI} />, { exact: true })
 
   return {
     title: <div className={staticClasses.Title}>epic-games-deck</div>,
-    content: <Content backend={backend} />,
+    content: <Content serverAPI={serverAPI} />,
     icon: <FaShip />,
     onDismount() {
-      serverApi.routerHook.removeRoute('/legendary-epic-login')
+      serverAPI.routerHook.removeRoute('/legendary-epic-login')
     },
   }
 })
