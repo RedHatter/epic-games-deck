@@ -69,6 +69,23 @@ const useAPI = (serverAPI: ServerAPI) => {
     download: (url: string) => callPluginMethod<string, { url: string }>('download_as_base64', { url }),
   }
 
+  const openInstallWizard = SteamClient.Installs.OpenInstallWizard
+  if (!openInstallWizard.__epicGamesDeck) {
+    SteamClient.Installs.OpenInstallWizard = function (appidList: Array<number>) {
+      internal.getAppidMap().then((appidMap) => {
+        const ourAppidList = R.values(appidMap)
+        const filteredList = R.filter(appidList, (appid) => ourAppidList.includes(appid))
+
+        if (!R.isEmpty(filteredList)) {
+          console.log('install', appidList)
+        }
+      })
+
+      return openInstallWizard.call(this, ...arguments)
+    }
+    SteamClient.Installs.OpenInstallWizard.__epicGamesDeck = true
+  }
+
   const api = {
     login: async (code?: string) => {
       if (code) {
@@ -144,10 +161,7 @@ const useAPI = (serverAPI: ServerAPI) => {
     patchGame: async (appid: number) => {
       const appidMap = await internal.getAppidMap()
 
-      console.log(R.values(appidMap), appid)
-
       if (!R.values(appidMap).includes(appid)) {
-        console.log('dont patch', appid)
         return false
       }
 
